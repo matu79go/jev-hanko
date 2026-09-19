@@ -1,0 +1,34 @@
+# secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# AI tooling / working instructions (never public — only the logic is published)
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.tanren/
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# private working notes (never public)
+private/
+
+# logs
+*.log
+
+# API 応答のキャッシュと取得したデータ(再取得できるのでリポには入れない)
+/cache/
+/data/
+CUADv1.json
+data.zip
+
+# Qiita 記事の下書き(記事は Qiita で公開するので、リポには入れない)
+/article/

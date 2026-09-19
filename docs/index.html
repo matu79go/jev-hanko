@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>契約書 41 項目チェック競走 — Jev と普通の LLM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f4f6fb; --panel:#ffffff; --line:#d5dcea; --text:#1b2438; --muted:#65718a;
+          --tp:#1fa463; --fp:#e29a1f; --fn:#e5484d; --empty:#eef1f8; --jev:#e5383b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:"Noto Sans JP",system-ui,sans-serif; }
+  .wrap { max-width:1280px; margin:0 auto; padding:14px 16px 20px; }
+  h1 { font-size:22px; margin:0; font-weight:900; letter-spacing:.02em; }
+  .sub { color:var(--muted); font-size:12.5px; margin:4px 0 10px; }
+  .top { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+  .clock { font-variant-numeric:tabular-nums; font-size:30px; font-weight:900; }
+  .clock small { font-size:13px; color:var(--muted); font-weight:400; margin-left:6px; }
+  .ff { display:none; background:#dfe8ff; color:#2f56b0; border-radius:6px; padding:2px 8px; font-size:12px; margin-left:8px; vertical-align:middle; }
+  .grid { display:grid; grid-template-columns:330px 1fr; gap:12px; }
+  @media (max-width:900px) { .grid { grid-template-columns:1fr; } }
+  .doc { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-height:200px; display:flex; flex-direction:column; }
+  .doc h2 { font-size:12px; color:var(--muted); margin:0 0 6px; font-weight:700; }
+  .paperbox { position:relative; flex:1; min-height:220px; }
+  .paper { position:absolute; inset:0; background:#f6f3ea; color:#2a2a2a; border-radius:6px; padding:9px 10px; font:11px/1.5 Georgia,serif; overflow:hidden; border:1px solid #e4dfcf; transform-origin:left center; backface-visibility:hidden;
+           box-shadow:0 1px 0 #e4dfcf, 0 4px 0 -1px #faf7ee, 0 5px 0 -1px #ddd6c2, 0 8px 0 -2px #faf7ee, 0 9px 0 -2px #ddd6c2, 0 12px 22px rgba(30,40,70,.18); }
+  .paper.leaving { z-index:3; animation:flip .34s cubic-bezier(.4,0,.7,1) forwards; }
+  @keyframes flip { 0% { transform:perspective(1100px) rotateY(0); opacity:1; } 60% { opacity:1; } 100% { transform:perspective(1100px) rotateY(-105deg); opacity:0; } }
+  .paper::after { content:""; position:absolute; left:0; right:0; bottom:0; height:40px; background:linear-gradient(transparent,#f6f3ea); }
+  .tags { margin-top:16px; display:flex; flex-wrap:wrap; align-items:flex-start; align-content:flex-start; gap:5px; height:84px; overflow:hidden; }
+  .tag { font-size:11.5px; padding:2px 7px; border-radius:999px; border:1px solid; }
+  .tag.tp { color:var(--tp); border-color:var(--tp); } .tag.fp { color:var(--fp); border-color:var(--fp); } .tag.fn { color:var(--fn); border-color:var(--fn); border-style:dashed; }
+  .lanes { display:flex; flex-direction:column; gap:8px; }
+  .lane { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:7px 10px 8px; position:relative; overflow:hidden; }
+  .lane.jev { border-color:var(--jev); box-shadow:0 0 0 1px rgba(229,56,59,.25) inset; }
+  .lane header { display:flex; align-items:baseline; gap:10px; font-size:13px; margin-bottom:5px; flex-wrap:wrap; }
+  .lane .name { font-weight:900; font-size:15px; min-width:170px; }
+  .lane.jev .name { color:var(--jev); }
+  .stat { color:var(--muted); font-variant-numeric:tabular-nums; } .stat b { color:var(--text); font-weight:700; }
+  canvas { display:block; width:100%; height:56px; border-radius:4px; background:var(--empty); }
+  .stamp { position:absolute; right:14px; top:6px; width:58px; height:58px; border:3px solid var(--jev); color:var(--jev); border-radius:50%;
+           display:flex; align-items:center; justify-content:center; font-weight:900; font-size:26px; transform:rotate(-12deg) scale(0); opacity:0; background:rgba(255,255,255,.85); }
+  html[lang=en] .stamp { font-size:19px; }
+  .stamp.on { animation:stamp .35s cubic-bezier(.2,1.6,.4,1) forwards; }
+  @keyframes stamp { from { transform:rotate(-12deg) scale(2.2); opacity:0; } to { transform:rotate(-12deg) scale(1); opacity:.95; } }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-top:10px; align-items:center; }
+  .sw { display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+  .banner { display:none; margin:10px 0 0; padding:9px 12px; border-radius:10px; background:#eaf0ff; border:1px solid #c6d4f5; font-size:14px; }
+  .banner b { color:var(--jev); }
+  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:12px; font-size:13px; color:var(--muted); }
+  button { background:var(--jev); color:#fff; border:0; border-radius:8px; padding:8px 16px; font-weight:700; font-family:inherit; cursor:pointer; }
+  input[type=range] { width:180px; }
+  table { border-collapse:collapse; width:100%; margin-top:12px; font-size:13px; display:none; }
+  th,td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:right; font-variant-numeric:tabular-nums; }
+  th:first-child,td:first-child { text-align:left; } th { color:var(--muted); font-weight:700; }
+  .note { color:var(--muted); font-size:11.5px; margin-top:10px; line-height:1.6; }
+  body.rec .controls, body.rec .note { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1 id="t_title">契約書 41 項目チェック競走</h1>
+      <div class="sub" id="t_sub">同じ英文契約書 20 ページを、各モデルが 1 ページずつ順に読み、41 種類の条項の有無を判定。待ち時間はすべて実測値の再生です。</div>
+    </div>
+    <div class="clock"><span id="clock">0.0</span><small id="t_sec">秒</small><span class="ff" id="ff">早送り ×8</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="doc">
+      <h2 id="docTitle">Jev が読んでいるページ</h2>
+      <div class="paperbox"><div class="paper" id="paper"></div></div>
+      <div class="tags" id="tags"></div>
+    </div>
+    <div class="lanes" id="lanes"></div>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="legend">
+    <span id="t_lg0">カード 1 枚 = 契約書 1 ページ、1 マス = 1 条項(41 種類)</span>
+    <span><i class="sw" style="background:var(--tp)"></i><span id="t_lg1">弁護士の印と一致</span></span>
+    <span><i class="sw" style="background:var(--fp)"></i><span id="t_lg2">AI だけが指摘</span></span>
+    <span><i class="sw" style="background:transparent;border:2px solid var(--fn)"></i><span id="t_lg3">見落とし</span></span>
+  </div>
+
+  <table id="final"><thead><tr id="t_thead"></tr></thead><tbody></tbody></table>
+
+  <div class="controls">
+    <button id="start">最初から再生</button>
+    <a id="t_toSort" href="sort.html" style="color:#2f6fe0"></a> <a id="t_toLang" style="color:#2f6fe0"></a>
+    <label><span id="t_thLabel"></span> <input type="range" id="th" min="0.1" max="0.95" step="0.05"> <b id="thv"></b>
+      <span id="t_thHelp"></span></label>
+  </div>
+  <div class="note" id="note"></div>
+</div>
+
+<script src="demo_data.js"></script>
+<script>
+(() => {
+  const D = window.DEMO, NP = D.excerpts.length, NC = D.categories.length;
+  const params = new URLSearchParams(location.search), REC = params.has("record"), EN = params.get("lang") === "en";
+  if (REC) document.body.classList.add("rec");
+  document.documentElement.lang = EN ? "en" : "ja";
+  const T = EN ? {
+    title: "41-Clause Contract Review Race", sub: "Each model reads the same 20 pages of real contracts, one page at a time, and answers 41 clause checks per page. All latencies are replayed exactly as measured.",
+    sec: "s", ff: "fast-forward ×8", reading: "Page Jev is reading", allDone: "Jev finished all pages",
+    lg0: "1 card = 1 contract page, 1 cell = 1 clause type (41)", lg1: "Matches the lawyers' annotation", lg2: "Flagged by AI only", lg3: "Missed",
+    thead: ["Model", "Total time for 20 pages", "Cost", "Match", "Missed", "AI only"], start: "Replay",
+    toSort: "← What is being checked? (sorting into baskets)", sortHref: "sort.html?lang=en", toLang: "日本語", langHref: "index.html",
+    thLabel: "Jev threshold", thHelp: "(Lower = fewer misses, more extra flags. The LLMs answer only the numbers of clauses present, so they have no threshold to move.)",
+    pages: "pages", laneStat: "Match <b class=\"tp\">0</b> · Missed <b class=\"fn\">0</b> · AI only <b class=\"fp\">0</b>", stamp: "OK",
+    banner: (t, rest) => `<b>Jev finished 20 pages (820 decisions) in ${t} s.</b> At this moment: ` + rest.map(([n, p]) => `${n} is on page ${p}`).join(", ") + ".",
+    note: th => "Latencies, probabilities and costs are all measured values, replayed as if each model processed the same pages one at a time. " +
+      "Ground truth: CUAD (public dataset of contracts annotated by lawyers for 41 clause types, CC BY 4.0). Jev's threshold " + th +
+      " was chosen on contracts not used in the test. Jev's cell opacity shows its probability.",
+    cat: c => D.categories[c].en,
+  } : {
+    title: "契約書 41 項目チェック競走", sub: "同じ英文契約書 20 ページを、各モデルが 1 ページずつ順に読み、41 種類の条項の有無を判定。待ち時間はすべて実測値の再生です。",
+    sec: "秒", ff: "早送り ×8", reading: "Jev が読んでいるページ", allDone: "Jev は全ページ完了",
+    lg0: "カード 1 枚 = 契約書 1 ページ、1 マス = 1 条項(41 種類)", lg1: "弁護士の印と一致", lg2: "AI だけが指摘", lg3: "見落とし",
+    thead: ["モデル", "20 ページの合計時間", "費用", "一致", "見落とし", "AI だけが指摘"], start: "最初から再生",
+    toSort: "← そもそも何をチェックしているのか(カゴへの振り分け)を見る", sortHref: "sort.html", toLang: "English", langHref: "index.html?lang=en",
+    thLabel: "Jev のしきい値", thHelp: "(下げると見落としが減り、余分な指摘が増えます。普通の LLM は「該当する番号だけ」を答える形式なので動かせません)",
+    pages: "ページ", laneStat: "一致 <b class=\"tp\">0</b> ・ 見落とし <b class=\"fn\">0</b> ・ AI だけ <b class=\"fp\">0</b>", stamp: "済",
+    banner: (t, rest) => `<b>Jev が 20 ページ(820 判定)を ${t} 秒で完了。</b> この時点で ` + rest.map(([n, p]) => `${n} は ${p} ページ目`).join("、") + "。",
+    note: th => D.note + " 正解は CUAD(弁護士が 41 種類の条項に印を付けた公開データ、CC BY 4.0)。Jev のしきい値 " + th +
+      " は、テストと別の契約書で決めた値です。Jev のマスの濃さは確率を表します。",
+    cat: c => D.categories[c].ja,
+  };
+  const byId = id => document.getElementById(id);
+  byId("t_title").textContent = T.title; document.title = T.title; byId("t_sub").textContent = T.sub; byId("t_sec").textContent = T.sec;
+  byId("ff").textContent = T.ff; byId("docTitle").textContent = T.reading;
+  ["lg0", "lg1", "lg2", "lg3", "thLabel", "thHelp"].forEach(k => { byId("t_" + k).textContent = T[k]; });
+  byId("t_thead").innerHTML = T.thead.map(h => `<th>${h}</th>`).join(""); byId("start").textContent = T.start;
+  byId("t_toSort").textContent = T.toSort; byId("t_toSort").href = T.sortHref; byId("t_toLang").textContent = T.toLang; byId("t_toLang").href = T.langHref;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const C = { tp: css("--tp"), fp: css("--fp"), fn: css("--fn"), empty: css("--empty") };
+  let jevTh = D.lanes[0].threshold;
+
+  const lanes = D.lanes.map((L, i) => {
+    const el = document.createElement("div");
+    el.className = "lane" + (i === 0 ? " jev" : "");
+    el.innerHTML = `<header><span class="name">${L.name}</span>
+      <span class="stat"><b class="pg">0</b>/${NP} ${T.pages}</span><span class="stat"><b class="sec">0.0</b> ${T.sec}</span>
+      <span class="stat">$<b class="cost">0.0000</b></span><span class="stat">${T.laneStat}</span></header>
+      <canvas></canvas><div class="stamp">${T.stamp}</div>`;
+    document.getElementById("lanes").appendChild(el);
+    let acc = 0;
+    const finish = L.pages.map(p => (acc += p.t));
+    return { L, el, finish, total: acc, done: -1, cv: el.querySelector("canvas"), popAt: {}, popping: false };
+  });
+
+  const verdict = (lane, page, c) => {
+    const th = lane === lanes[0] ? jevTh : lane.L.threshold;
+    const pred = lane.L.pages[page].p[c] >= th, gold = D.excerpts[page].gold[c];
+    if (gold === null) return null;
+    return pred && gold ? "tp" : pred ? "fp" : gold ? "fn" : null;
+  };
+
+  // 1 ページ = 1 枚のカード(7 列 × 6 行 = 41 マス)。判定が返った瞬間にカードが「ポン」と現れる。
+  const COLS = 7, ROWS = 6, POP_MS = 220;
+  function draw(lane, now) {
+    const cv = lane.cv, dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+    const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    const slot = w / NP, cardW = Math.min(slot - 4, 42), cell = cardW / COLS, cardH = cell * ROWS, top = (h - cardH) / 2;
+    let tp = 0, fp = 0, fn = 0, cost = 0;
+    lane.popping = false;
+    for (let r = 0; r < NP; r++) {
+      const x0 = r * slot + (slot - cardW) / 2;
+      if (r > lane.done) { g.fillStyle = "rgba(30,45,90,.06)"; g.fillRect(x0, top, cardW, cardH); continue; }
+      cost += lane.L.pages[r].c;
+      const age = now === undefined ? POP_MS : now - (lane.popAt[r] || 0), k = Math.min(age / POP_MS, 1);
+      if (k < 1) lane.popping = true;
+      const s = 1 + 0.55 * (1 - k) * (1 - k);
+      g.save(); g.translate(x0 + cardW / 2, top + cardH / 2); g.scale(s, s); g.translate(-cardW / 2, -cardH / 2);
+      g.fillStyle = k < 1 ? "#b9c8ee" : "#dde4f2"; g.fillRect(-1, -1, cardW + 2, cardH + 2);
+      for (let c = 0; c < NC; c++) {
+        const x = (c % COLS) * cell + .5, y = Math.floor(c / COLS) * cell + .5, ww = cell - 1, v = verdict(lane, r, c);
+        if (!v) { g.fillStyle = "rgba(255,255,255,.75)"; g.fillRect(x, y, ww, ww); continue; }
+        if (v === "fn") { fn++; g.strokeStyle = C.fn; g.lineWidth = 1.3; g.strokeRect(x + .7, y + .7, ww - 1.4, ww - 1.4); }
+        else { v === "tp" ? tp++ : fp++; g.globalAlpha = lane === lanes[0] ? 0.45 + 0.55 * lane.L.pages[r].p[c] : 1;
+               g.fillStyle = C[v]; g.fillRect(x, y, ww, ww); g.globalAlpha = 1; }
+      }
+      g.restore();
+    }
+    const q = s => lane.el.querySelector(s);
+    q(".pg").textContent = lane.done + 1; q(".cost").textContent = cost.toFixed(4);
+    q(".tp").textContent = tp; q(".fn").textContent = fn; q(".fp").textContent = fp;
+    return { tp, fp, fn, cost };
+  }
+
+  function showDoc(page) {
+    const ex = D.excerpts[page], paper = document.getElementById("paper");
+    if (paper.dataset.page !== String(page) && paper.textContent) {  // ページをめくる
+      const old = paper.cloneNode(true); old.removeAttribute("id"); old.classList.add("leaving");
+      paper.parentNode.appendChild(old); old.addEventListener("animationend", () => old.remove());
+    }
+    paper.dataset.page = page; paper.textContent = ex.text;
+    const tags = document.getElementById("tags"); tags.innerHTML = "";
+    if (lanes[0].done < page) return;
+    for (let c = 0; c < NC; c++) {
+      const v = verdict(lanes[0], page, c); if (!v) continue;
+      const t = document.createElement("span"); t.className = "tag " + v; t.title = D.categories[c].en;
+      t.textContent = T.cat(c) + (v !== "fn" ? " " + Math.round(lanes[0].L.pages[page].p[c] * 100) + "%" : "");
+      tags.appendChild(t);
+    }
+  }
+
+  let sim = 0, speed = 1, last = null, phase = "run", holdUntil = 0, raf = null;
+  function reset() {
+    sim = 0; speed = 1; last = null; phase = "run";
+    lanes.forEach(l => { l.done = -1; l.popAt = {}; l.el.querySelector(".stamp").classList.remove("on"); draw(l); });
+    document.getElementById("banner").style.display = "none"; document.getElementById("final").style.display = "none";
+    document.getElementById("ff").style.display = "none"; window.__done = false; byId("docTitle").textContent = T.reading; showDoc(0);
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
+  }
+
+  function tick(now) {
+    if (last === null) last = now;
+    const dt = Math.min((now - last) / 1000, 0.1); last = now;
+    if (phase === "hold") { if (now >= holdUntil) { phase = "ff"; speed = 8; document.getElementById("ff").style.display = "inline-block"; } }
+    else sim += dt * speed;
+    document.getElementById("clock").textContent = sim.toFixed(1);
+    let allDone = true;
+    lanes.forEach((l, i) => {
+      let d = l.done; while (d + 1 < NP && l.finish[d + 1] <= sim) { d++; l.popAt[d] = now; }
+      if (d !== l.done) { l.done = d; draw(l, now); if (i === 0) showDoc(d); }
+      else if (l.popping) draw(l, now);
+      l.el.querySelector(".sec").textContent = Math.min(sim, l.total).toFixed(1);
+      if (l.done === NP - 1) l.el.querySelector(".stamp").classList.add("on"); else allDone = false;
+    });
+    if (phase === "run" && lanes[0].done === NP - 1) {
+      phase = "hold"; holdUntil = now + 2200;
+      const b = document.getElementById("banner"); b.style.display = "block";
+      b.innerHTML = T.banner(lanes[0].total.toFixed(1), lanes.slice(1).map(l => [l.L.name, l.done + 1]));
+      document.getElementById("docTitle").textContent = T.allDone;
+    }
+    if (allDone) { finish(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function finish() {
+    const tb = document.querySelector("#final tbody"); tb.innerHTML = "";
+    lanes.forEach(l => { const s = draw(l);
+      tb.insertAdjacentHTML("beforeend", `<tr><td>${l.L.name}</td><td>${l.total.toFixed(1)} ${T.sec}</td><td>$${s.cost.toFixed(4)}</td><td>${s.tp}</td><td>${s.fn}</td><td>${s.fp}</td></tr>`); });
+    document.getElementById("final").style.display = "table";
+    document.getElementById("ff").style.display = "none";
+    if (REC) document.getElementById("banner").style.display = "none";
+    setTimeout(() => { window.__done = true; }, 2500);
+  }
+
+  const th = document.getElementById("th"), thv = document.getElementById("thv");
+  th.value = jevTh; thv.textContent = jevTh.toFixed(2);
+  th.addEventListener("input", () => { jevTh = +th.value; thv.textContent = jevTh.toFixed(2); draw(lanes[0]); showDoc(Math.max(lanes[0].done, 0));
+    if (document.getElementById("final").style.display === "table") finish(); });
+  document.getElementById("start").addEventListener("click", reset);
+  document.getElementById("note").textContent = T.note(D.lanes[0].threshold.toFixed(2));
+  window.addEventListener("resize", () => lanes.forEach(draw));
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(reset);
+})();
+</script>
+</body>
+</html>

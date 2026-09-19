@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>契約書の仕分け — Jev が 41 個のカゴへ振り分ける</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f4f6fb; --panel:#ffffff; --line:#d5dcea; --text:#1b2438; --muted:#65718a;
+          --tp:#1fa463; --fp:#d98a00; --fn:#e5484d; --jev:#e5383b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:"Noto Sans JP",system-ui,sans-serif; overflow-x:hidden; }
+  .wrap { max-width:1280px; margin:0 auto; padding:10px 14px 12px; position:relative; }
+  .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px; }
+  h1 { font-size:20px; margin:0; font-weight:900; }
+  h1 em { color:var(--jev); font-style:normal; }
+  .stats { display:flex; gap:16px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .stats b { color:var(--text); font-size:19px; font-weight:900; margin-right:2px; }
+  .grid { display:grid; grid-template-columns:350px 1fr; gap:12px; }
+  @media (max-width:900px) { .grid { grid-template-columns:1fr; } }
+  .left { display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .caption { background:#eaf0ff; border:1px solid #c6d4f5; border-radius:10px; padding:9px 12px; font-size:15.5px; font-weight:700; min-height:62px; line-height:1.45; }
+  .caption small { display:block; font-size:11.5px; font-weight:400; color:var(--muted); margin-top:2px; }
+  .paperbox { position:relative; height:262px; margin-bottom:8px; }
+  .paper { position:absolute; inset:0; background:#f6f3ea; color:#2a2a2a; border-radius:6px; padding:9px 11px; font:10.5px/1.5 Georgia,serif; overflow:hidden; box-shadow:0 1px 0 #e4dfcf, 0 4px 0 -1px #faf7ee, 0 5px 0 -1px #ddd6c2, 0 8px 0 -2px #faf7ee, 0 9px 0 -2px #ddd6c2, 0 12px 22px rgba(30,40,70,.18); border:1px solid #e4dfcf; transform-origin:left center; backface-visibility:hidden; }
+  .paper::after { content:""; position:absolute; left:0; right:0; bottom:0; height:36px; background:linear-gradient(transparent,#f6f3ea); }
+  .paper .pg { position:absolute; right:8px; top:6px; font:700 10px "Noto Sans JP",sans-serif; color:#8a836f; background:#ebe6d6; border-radius:4px; padding:1px 6px; }
+  .paper mark { background:#ffe27a; color:inherit; border-radius:2px; padding:0 1px; }
+  .paper.in { animation:slidein .45s cubic-bezier(.2,.9,.3,1); }
+  .paper.leaving { z-index:3; animation:flip .34s cubic-bezier(.4,0,.7,1) forwards; pointer-events:none; }
+  @keyframes flip { 0% { transform:perspective(1100px) rotateY(0); opacity:1; } 60% { opacity:1; }
+                    100% { transform:perspective(1100px) rotateY(-105deg); opacity:0; } }
+  @keyframes slidein { from { transform:translateX(-40px) rotate(-2deg); opacity:0; } to { transform:none; opacity:1; } }
+  .log { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:7px 10px; height:186px; overflow:hidden; }
+  .log h2 { font-size:11.5px; color:var(--muted); margin:0 0 4px; font-weight:700; }
+  .entry { font-size:11.5px; line-height:1.4; padding:3px 0 3px 8px; border-left:3px solid var(--tp); margin-bottom:4px; animation:fadein .25s; }
+  .entry.fp { border-color:var(--fp); } .entry.fn { border-color:var(--fn); }
+  .entry b { font-weight:700; } .entry span { color:var(--muted); display:block; }
+  @keyframes fadein { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+  .baskets { display:flex; flex-direction:column; gap:5px; min-width:0; }
+  .ghead { font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:6px; margin-top:1px; }
+  .ghead i { width:9px; height:9px; border-radius:2px; display:inline-block; }
+  .row { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; }
+  .basket { background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--g); border-radius:7px; padding:3px 7px 4px; height:43px; position:relative; overflow:hidden; transition:background .5s; }
+  .basket .n { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:24px; }
+  html[lang=en] .basket .n { font-size:11.5px; letter-spacing:-.1px; }
+  .basket .d { font-size:9.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .basket .c { position:absolute; right:6px; top:3px; font-size:15px; font-weight:900; color:var(--g); font-variant-numeric:tabular-nums; opacity:.3; }
+  .basket.has .c { opacity:1; }
+  .basket .m { position:absolute; right:0; bottom:0; font-size:9px; color:var(--fn); background:var(--panel); padding:1px 6px 2px 8px; border-radius:6px 0 0 0; }
+  .basket .m:empty { display:none; }
+  .basket.hit { background:color-mix(in srgb, var(--g) 30%, var(--panel)); transition:none; }
+  .basket.scan { background:#e3ebff; transition:none; }
+  .layer { position:fixed; inset:0; pointer-events:none; z-index:10; }
+  .chip { position:absolute; left:0; top:0; background:#ffffff; border:2px solid var(--tp); color:var(--text); border-radius:9px; padding:4px 9px; font-size:12px; font-weight:700; white-space:nowrap; box-shadow:0 4px 14px rgba(30,40,70,.25); will-change:transform; }
+  .chip.fp { border-color:var(--fp); } .chip.fn { border-color:var(--fn); border-style:dashed; }
+  .chip.big { white-space:normal; width:300px; font-size:13px; padding:7px 11px; }
+  .chip.big span { display:block; font-weight:400; font-size:12px; color:#4a5670; margin-top:2px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; color:var(--muted); font-size:11.5px; margin-top:8px; align-items:center; }
+  .sw { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; border:2px solid; }
+  .summary { display:none; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); background:rgba(255,255,255,.97); border:2px solid var(--jev); border-radius:16px; padding:22px 30px; text-align:center; z-index:20; box-shadow:0 20px 60px rgba(30,40,70,.28); min-width:560px; }
+  .summary h2 { margin:0 0 6px; font-size:26px; font-weight:900; } .summary h2 em { color:var(--jev); font-style:normal; }
+  .summary p { margin:6px 0 0; color:var(--muted); font-size:14px; } .summary p b { color:var(--text); }
+  .controls { margin-top:10px; font-size:13px; color:var(--muted); display:flex; gap:14px; align-items:center; }
+  .controls a { color:#2f6fe0; }
+  button { background:var(--jev); color:#fff; border:0; border-radius:8px; padding:7px 14px; font-weight:700; font-family:inherit; cursor:pointer; }
+  body.rec .controls { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1 id="title"></h1>
+    <div class="stats">
+      <span><b id="sPage">0</b>/ <span id="sTotal"></span> <span id="uPage"></span></span>
+      <span><b id="sJudge">0</b><span id="uJudge"></span></span>
+      <span><b id="sSec">0.0</b><span id="uSec"></span></span>
+      <span><b id="sCost">0.00</b><span id="uCost"></span></span>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="left">
+      <div class="caption" id="caption"></div>
+      <div class="paperbox"><div class="paper" id="paper"></div></div>
+      <div class="log"><h2 id="logTitle"></h2><div id="log"></div></div>
+    </div>
+    <div class="baskets" id="baskets"></div>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="border-color:var(--tp)"></i><span id="lgTp"></span></span>
+    <span><i class="sw" style="border-color:var(--fp)"></i><span id="lgFp"></span></span>
+    <span><i class="sw" style="border-color:var(--fn);border-style:dashed"></i><span id="lgFn"></span></span>
+    <span id="lgNote"></span>
+  </div>
+  <div class="controls"><button id="start"></button><a id="toRace"></a><a id="toLang"></a></div>
+  <div class="summary" id="summary"></div>
+</div>
+<div class="layer" id="layer"></div>
+
+<script src="demo_data.js"></script>
+<script src="demo_ja.js"></script>
+<script src="demo_en.js"></script>
+<script>
+(() => {
+  const D = window.DEMO, NC = D.categories.length;
+  const params = new URLSearchParams(location.search), REC = params.has("record"), EN = params.get("lang") === "en";
+  if (REC) document.body.classList.add("rec");
+  document.documentElement.lang = EN ? "en" : "ja";
+  const J = EN ? window.DEMO_EN : window.DEMO_JA;   // カゴの分野・名前・一言説明
+  const name = c => J.short[c] || (EN ? D.categories[c].en : D.categories[c].ja);
+  const T = EN ? {
+    title: "<em>Jev</em> reads contracts and sorts clauses into 41 baskets",
+    uPage: "pages", uJudge: " decisions", uSec: " s (Jev processing time, measured)", uCost: " USD",
+    logTitle: "Clauses sorted (original contract text)", lgTp: "Matches the lawyers' annotation",
+    lgFp: "Flagged by AI only (no lawyer annotation)", lgFn: "Missed",
+    lgNote: "Basket number = clauses sorted into it. Ground truth: lawyer annotations in the public CUAD dataset.",
+    start: "Replay", toRace: "→ See the speed race (5 models)", raceHref: "index.html?lang=en", toLang: "日本語", langHref: "sort.html",
+    page: n => "Page " + n, missed: n => "missed " + n, missTag: " (missed)",
+    fnBody: pct => `Missed (Jev's probability ${pct})`, fpBody: "Flagged by AI only (no lawyer annotation)",
+    ready: "Ready…", readySub: "20 pages of real contracts. For each page, 41 clause checks are answered in one call and sorted into baskets.",
+    go: "Go! Playing at real speed", goSub: "About 0.4 s per page (41 checks). Latencies are replayed exactly as measured.",
+    done: "Sorting complete", doneSub: "Each basket shows how many clauses of that type were found.",
+    summary: st => `<h2>${st.pages} pages × ${NC} checks = <em>${st.pages * NC} decisions</em></h2>
+      <p>Jev processing time <b>${st.sec.toFixed(1)} s</b> · cost <b>$${st.usd.toFixed(4)}</b></p>
+      <p>Matches lawyers <b>${st.tp}</b> · missed <b>${st.fn}</b> · flagged by AI only <b>${st.fp}</b></p>
+      <p>A whole contract (27 pages on average): about $0.003 and 11 seconds</p>`,
+    cost: usd => usd.toFixed(4),
+    quote: (page, it) => { const m = D.excerpts[page].marks.find(m => m[0] === it.c); if (!m) return "";
+                           const t = m[3].replace(/\s+/g, " ").trim(); return "“" + (t.length > 96 ? t.slice(0, 96) + "…" : t) + "”"; },
+  } : {
+    title: "<em>Jev</em> が英文契約書を読み、41 個のカゴに振り分ける",
+    uPage: "ページ", uJudge: "判定", uSec: "秒(Jev の処理時間・実測)", uCost: "円",
+    logTitle: "振り分けた条文(日本語は筆者による参考訳)", lgTp: "弁護士の印と一致", lgFp: "AI だけが指摘(弁護士の印なし)", lgFn: "見落とし",
+    lgNote: "カゴの数字 = 振り分けられた件数。正解は公開データ CUAD の弁護士注釈。",
+    start: "最初から再生", toRace: "→ 速度の競走(5 モデル比較)を見る", raceHref: "index.html", toLang: "English", langHref: "sort.html?lang=en",
+    page: n => n + " ページ目", missed: n => "見落とし " + n, missTag: "(見落とし)",
+    fnBody: pct => `見落とし(Jev の確率 ${pct})`, fpBody: "AI だけが指摘(弁護士の印なし)",
+    ready: "用意…", readySub: "英文契約書 20 ページ。1 ページごとに 41 項目を同時に判定し、該当する条文をカゴへ振り分けます",
+    go: "ドン! 実際の速さで再生中", goSub: "1 ページ(41 項目)あたり 約 0.4 秒。待ち時間は実測値そのままです",
+    done: "振り分け完了", doneSub: "カゴの数字が、項目ごとに見つかった件数です",
+    summary: st => `<h2>${st.pages} ページ × ${NC} 項目 = <em>${st.pages * NC} 判定</em></h2>
+      <p>Jev の処理時間 <b>${st.sec.toFixed(1)} 秒</b> ・ 費用 <b>約 ${(st.usd * 150).toFixed(2)} 円</b>($${st.usd.toFixed(4)})</p>
+      <p>弁護士の印と一致 <b>${st.tp}</b> ・ 見落とし <b>${st.fn}</b> ・ AI だけが指摘 <b>${st.fp}</b></p>
+      <p>契約書 1 通まるごと(平均 27 ページ)でも 約 0.5 円・約 11 秒</p>`,
+    cost: usd => (usd * 150).toFixed(2),
+    quote: (page, it) => { const ja = window.DEMO_JA.ja[page + "|" + it.c]; return ja ? "「" + ja + "」" : ""; },
+  };
+  const jev = D.lanes[0], TH = jev.threshold;
+  const $ = id => document.getElementById(id), sleep = ms => new Promise(r => setTimeout(r, ms));
+  ["title", "uPage", "uJudge", "uSec", "uCost", "logTitle", "lgTp", "lgFp", "lgFn", "lgNote", "start", "toRace", "toLang"]
+    .forEach(k => { $(k).innerHTML = T[k]; });
+  $("toRace").href = T.raceHref; $("toLang").href = T.langHref; document.title = $("title").textContent;
+  // ページの順番は測定時のまま。最初から最後まで、実測の待ち時間で再生する。
+  const order = D.excerpts.map((_, i) => i);
+  $("sTotal").textContent = order.length;
+
+  const basketEl = [];
+  J.groups.forEach(g => {
+    const h = document.createElement("div"); h.className = "ghead"; h.innerHTML = `<i style="background:${g.color}"></i>${g.name}`;
+    const row = document.createElement("div"); row.className = "row";
+    g.items.forEach(c => {
+      const b = document.createElement("div"); b.className = "basket"; b.style.setProperty("--g", g.color);
+      b.innerHTML = `<div class="n">${name(c)}</div><div class="d">${J.desc[c]}</div><div class="c">0</div><div class="m"></div>`;
+      b.title = D.categories[c].en; row.appendChild(b); basketEl[c] = b;
+    });
+    $("baskets").append(h, row);
+  });
+
+  let run = 0, counts, misses, stat;
+  const esc = s => s.replace(/[&<>]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]));
+  function showPaper(page, n, slide) {
+    const el = $("paper"); el.classList.remove("in");
+    if (!slide && el.innerHTML) {  // いまのページをめくって、下から次のページを出す
+      const old = el.cloneNode(true); old.removeAttribute("id"); old.classList.add("leaving");
+      el.parentNode.appendChild(old); old.addEventListener("animationend", () => old.remove());
+    }
+    el.innerHTML = `<div class="pg">${T.page(n)}</div>` + esc(D.excerpts[page].text);
+    if (slide) { void el.offsetWidth; el.classList.add("in"); }
+  }
+  function highlight(page, n) {
+    const ex = D.excerpts[page], text = ex.text; let html = "", pos = 0;
+    ex.marks.slice().sort((a, b) => a[1] - b[1]).forEach(([c, s, e]) => {
+      if (s < pos || s >= text.length) return;
+      e = Math.min(e, text.length); html += esc(text.slice(pos, s)) + "<mark>" + esc(text.slice(s, e)) + "</mark>"; pos = e;
+    });
+    $("paper").innerHTML = `<div class="pg">${T.page(n)}</div>` + html + esc(text.slice(pos));
+  }
+  function items(page) {
+    const out = [], p = jev.pages[page].p, gold = D.excerpts[page].gold;
+    for (let c = 0; c < NC; c++) {
+      if (gold[c] === null) continue;
+      const pred = p[c] >= TH;
+      if (pred || gold[c]) out.push({ c, page, prob: p[c], kind: pred && gold[c] ? "tp" : pred ? "fp" : "fn" });
+    }
+    const rank = { tp: 0, fp: 1, fn: 2 };
+    return out.sort((a, b) => rank[a.kind] - rank[b.kind]);
+  }
+  function land(it) {
+    const b = basketEl[it.c];
+    if (it.kind === "fn") { misses[it.c]++; b.querySelector(".m").textContent = T.missed(misses[it.c]); stat.fn++; }
+    else { counts[it.c]++; b.querySelector(".c").textContent = counts[it.c]; b.classList.add("has", "hit"); stat[it.kind]++;
+           setTimeout(() => b.classList.remove("hit"), 90); }
+  }
+  function logEntry(it) {
+    const pct = Math.round(it.prob * 100) + "%", quote = T.quote(it.page, it);
+    const body = it.kind === "fn" ? T.fnBody(pct) : it.kind === "fp" ? T.fpBody : "";
+    const e = document.createElement("div"); e.className = "entry " + it.kind;
+    e.innerHTML = `<b>${name(it.c)}</b> ${it.kind === "fn" ? "" : pct}<span>${esc(quote) || body}${quote && body ? " — " + body : ""}</span>`;
+    $("log").prepend(e); while ($("log").children.length > 6) $("log").lastChild.remove();
+  }
+  function fly(it, ms) {
+    const from = $("paper").getBoundingClientRect(), to = basketEl[it.c].getBoundingClientRect();
+    const chip = document.createElement("div"); chip.className = "chip " + it.kind;
+    chip.textContent = name(it.c) + (it.kind === "fn" ? T.missTag : " " + Math.round(it.prob * 100) + "%");
+    $("layer").appendChild(chip);
+    const w = chip.offsetWidth, h = chip.offsetHeight;
+    const x0 = from.left + from.width / 2 - w / 2, y0 = from.top + from.height * 0.45 - h / 2;
+    const x1 = to.left + to.width / 2 - w / 2, y1 = to.top + to.height / 2 - h / 2;
+    return chip.animate([
+      { transform: `translate(${x0}px,${y0}px) scale(.9)`, opacity: 0, offset: 0 },
+      { transform: `translate(${x0}px,${y0}px) scale(1)`, opacity: 1, offset: 0.15 },
+      { transform: `translate(${x1}px,${y1}px) scale(.6)`, opacity: 0.9, offset: 1 },
+    ], { duration: ms, easing: "cubic-bezier(.5,0,.3,1)", fill: "forwards" }).finished.then(() => { chip.remove(); land(it); });
+  }
+  function bump(page) {
+    stat.pages++; stat.sec += jev.pages[page].t; stat.usd += jev.pages[page].c;
+    $("sPage").textContent = stat.pages; $("sJudge").textContent = stat.pages * NC;
+    $("sSec").textContent = stat.sec.toFixed(1); $("sCost").textContent = T.cost(stat.usd);
+  }
+  const cap = (main, sub) => { $("caption").innerHTML = main + (sub ? `<small>${sub}</small>` : ""); };
+
+  async function play() {
+    const me = ++run, alive = () => me === run;
+    counts = Array(NC).fill(0); misses = Array(NC).fill(0); stat = { pages: 0, sec: 0, usd: 0, tp: 0, fp: 0, fn: 0 };
+    basketEl.forEach(b => { b.classList.remove("has", "hit"); b.querySelector(".c").textContent = "0"; b.querySelector(".m").textContent = ""; });
+    $("log").innerHTML = ""; $("layer").innerHTML = ""; $("summary").style.display = "none"; window.__done = false;
+    ["sPage", "sJudge"].forEach(i => $(i).textContent = "0"); $("sSec").textContent = "0.0"; $("sCost").textContent = T.cost(0);
+
+    showPaper(order[0], 1, true);
+    cap(T.ready, T.readySub);
+    await sleep(1500); if (!alive()) return;
+    cap(T.go, T.goSub);
+    for (let k = 0; k < order.length && alive(); k++) {
+      const page = order[k], n = k + 1, its = items(page);
+      if (k > 0) showPaper(page, n, false);
+      await sleep(jev.pages[page].t * 1000); if (!alive()) return;
+      highlight(page, n); bump(page);
+      its.forEach(it => { logEntry(it); fly(it, 420); });
+    }
+    await sleep(900); if (!alive()) return;
+    cap(T.done, T.doneSub);
+    $("summary").innerHTML = T.summary(stat);
+    $("summary").style.display = "block";
+    setTimeout(() => { if (alive()) window.__done = true; }, 3200);
+  }
+  $("start").addEventListener("click", play);
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(play);
+})();
+</script>
+</body>
+</html>
