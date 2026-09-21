@@ -101,7 +101,9 @@
 <script>
 (() => {
   const D = window.DEMO, NP = D.excerpts.length, NC = D.categories.length;
-  const params = new URLSearchParams(location.search), REC = params.has("record"), EN = params.get("lang") === "en";
+  const params = new URLSearchParams(location.search), REC = params.has("record"), LP = params.get("lang");
+  // ?lang wins; otherwise follow the browser, except while recording (kept deterministic: ja)
+  const EN = LP ? LP === "en" : (REC ? false : !/^ja/i.test(navigator.language || ""));
   if (REC) document.body.classList.add("rec");
   document.documentElement.lang = EN ? "en" : "ja";
   const T = EN ? {

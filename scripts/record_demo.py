@@ -1,8 +1,8 @@
-"""デモページをヘッドレスブラウザで再生して録画し、mp4 と gif にする。
+"""Replay the demo page in a headless browser, record it, and write out mp4 and gif.
 
-Usage: python3 scripts/record_demo.py race [en]   # docs/index.html → media/demo[_en].*      (速度の競走)
-       python3 scripts/record_demo.py sort [en]   # docs/sort.html  → media/demo_sort[_en].* (カゴへの振り分け)
-要 playwright + chromium、ffmpeg。ページ側は実測の待ち時間をそのまま再生する。
+Usage: python3 scripts/record_demo.py race [en]   # docs/index.html -> media/demo[_en].*      (the speed race)
+       python3 scripts/record_demo.py sort [en]   # docs/sort.html  -> media/demo_sort[_en].* (sorting into baskets)
+Requires playwright + chromium and ffmpeg. The page replays the measured latencies as-is.
 """
 import shutil
 import subprocess
@@ -36,7 +36,7 @@ def main(which, lang="ja"):
     mp4, gif = media / f"{stem}.mp4", media / f"{stem}.gif"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(webm), "-c:v", "libx264", "-pix_fmt", "yuv420p",
                     "-crf", "20", "-movflags", "+faststart", str(mp4)], check=True)
-    # Qiita の画像上限(10MB)に収まるよう、長い方は少し粗くする
+    # Keep under the 10MB image limit of the article host; the longer clip is coarsened a little
     fps, width, colors = (8, 900, 80) if which == "race" else (8, 800, 64)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(webm), "-vf",
                     f"fps={fps},scale={width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors={colors}[p];"

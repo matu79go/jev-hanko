@@ -1,8 +1,8 @@
 """Smoke test: ONE paid Jev call (~400 input tokens, well under $0.0001).
 
 Usage:  OPENROUTER_API_KEY=... python3 scripts/smoke_jev.py
-Confirms the Decisions endpoint shape, Japanese handling, and the response fields
-for all three primitives (noul / choice / score).
+Confirms the Decisions endpoint shape and the response fields for all three primitives
+(noul / choice / score).
 """
 import json
 import sys
@@ -12,33 +12,40 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jev_hanko.jev_client import decide  # noqa: E402
 
 STATE = {
-    "invoice_line": {"品目": "本みりん 1.8L", "数量": 2, "適用税率": "8%"},
-    "摘要": "品代一式",
+    "clause": (
+        "Either party may terminate this Agreement at any time, for any reason or no reason, "
+        "upon ninety (90) days' prior written notice to the other party."
+    ),
+    "contract_type": "Master Services Agreement",
 }
 
 QUESTIONS = {
-    "reduced_rate_ok": {
+    "termination_for_convenience": {
         "type": "noul",
-        "instructions": "`invoice_line.品目` は日本の消費税の軽減税率(8%)の対象か",
+        "instructions": "Does `clause` let a party walk away without cause?",
         "criteria": {
-            "true": "酒類を除く飲食料品。みりん風調味料(アルコール1%未満)は対象",
-            "false": "酒税法上の酒類(アルコール1度以上。本みりん・料理酒を含む)、外食、ケータリング、医薬部外品",
+            "true": "Either or one party may terminate for convenience, with or without a notice period",
+            "false": "Termination only for cause, for breach, on expiry, or not addressed at all",
         },
     },
-    "account": {
+    "who_may_terminate": {
         "type": "choice",
-        "instructions": "`invoice_line.品目` を社内で購入した場合の勘定科目",
+        "instructions": "Who is given the right to terminate in `clause`?",
         "criteria": {
-            "消耗品費": "事務用品・日用品などの少額物品",
-            "会議費": "会議・打合せに伴う飲食",
-            "交際費": "取引先への接待・贈答",
-            "その他": "上のどれにも当てはまらない",
+            "either": "Both parties have the same right",
+            "customer": "Only the customer / buyer side",
+            "supplier": "Only the supplier / vendor side",
+            "none": "No termination right is granted here",
         },
     },
-    "specificity": {
+    "notice_burden": {
         "type": "score",
-        "instructions": "`摘要` の記載から取引内容をどこまで特定できるか",
-        "criteria": ["何の取引か特定できない(一式・諸経費など)", "分野は分かるが品目・役務は不明", "品目または役務が特定できる"],
+        "instructions": "How much advance notice does `clause` demand of the terminating party?",
+        "criteria": [
+            "no notice required, effective immediately",
+            "a short notice period, under 60 days",
+            "a long notice period, 60 days or more",
+        ],
     },
 }
 

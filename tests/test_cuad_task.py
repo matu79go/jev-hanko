@@ -22,8 +22,8 @@ def test_span_cut_by_boundary_majority_side_positive_other_side_excluded():
     ws = windows(_contract(5000, []))
     boundary = len(ws[0]["text"])
     ws = windows(_contract(5000, [("Audit Rights", boundary - 90, boundary + 10)]))
-    assert ws[0]["labels"]["Audit Rights"] is True      # 90% が前の抜粋
-    assert ws[1]["labels"]["Audit Rights"] is None      # 10% だけ掛かる側は採点から除外
+    assert ws[0]["labels"]["Audit Rights"] is True      # 90% of the span lies in the first excerpt
+    assert ws[1]["labels"]["Audit Rights"] is None      # the 10% overlap side is excluded from scoring
 
 
 def test_jev_questions_are_41_style_nouls_with_official_details():

@@ -1,7 +1,9 @@
-"""課題: CUAD(弁護士が41種類の条項に印を付けた英文契約書 510 通)で、契約書の抜粋ごとに
-「この抜粋に、その条項はあるか」を 41 問まとめて判定する。
+"""The task: CUAD is a set of 510 English contracts in which lawyers marked up 41 clause types.
+For each excerpt of a contract we ask, in one shot, all 41 questions of the form
+"does this clause appear in this excerpt?".
 
-正解は CUAD の注釈(文字位置つき)から機械的に計算する。質問文は CUAD 公式の説明文をそのまま使う。
+Ground truth is derived mechanically from the CUAD annotations (which carry character offsets).
+The question text is CUAD's own official description of each clause, used verbatim.
 CUAD: https://www.atticusprojectai.org/cuad (CC BY 4.0)
 """
 import hashlib
@@ -10,7 +12,7 @@ import random
 import re
 from pathlib import Path
 
-WINDOW = 2000      # 抜粋の長さ(文字)
+WINDOW = 2000      # excerpt length, in characters
 MIN_WINDOW = 300
 
 
@@ -29,7 +31,7 @@ def load_contracts(path):
 
 
 def categories(path):
-    """[(条項名, CUAD 公式の説明文)] を 41 件返す。"""
+    """Return the 41 (clause name, official CUAD description) pairs."""
     para = json.loads(Path(path).read_text(encoding="utf-8"))["data"][0]["paragraphs"][0]
     out = []
     for qa in para["qas"]:
@@ -40,8 +42,10 @@ def categories(path):
 
 
 def windows(contract):
-    """契約書を約2000文字の抜粋に切り、抜粋ごとに 条項→正解 を付ける。
-    正解: 印の 50% 以上が抜粋に入っていれば True。一部だけ掛かる(0<重なり<50%)ものは None(採点から除外)。"""
+    """Cut a contract into ~2000-character excerpts and label each excerpt clause -> truth.
+
+    A label is True when at least 50% of the annotated span falls inside the excerpt. A span that
+    only partially overlaps (0 < overlap < 50%) becomes None and is excluded from scoring."""
     text, out, start = contract["text"], [], 0
     while start < len(text):
         end = min(start + WINDOW, len(text))
@@ -57,7 +61,7 @@ def windows(contract):
                 ratio = overlap / (e - s)
                 if ratio >= 0.5:
                     labels[cat] = True
-                    marks.append((cat, max(s, start) - start, min(e, end) - start))  # 抜粋内での印の位置
+                    marks.append((cat, max(s, start) - start, min(e, end) - start))  # span position, relative to the excerpt
                 elif labels.get(cat) is not True:
                     labels[cat] = None
             out.append({"id": f"{contract['title'][:40]}@{start}", "text": text[start:end], "labels": labels,
@@ -71,9 +75,10 @@ def is_test_contract(title):
 
 
 def sample_windows(path, n_positive, n_random, seed=0, test=True):
-    """テスト用(test=False なら較正用 = テスト以外)の契約書から、
-    条項を1つ以上含む抜粋 n_positive 件 + 無作為 n_random 件を返す。
-    戻り値の2つのリストは無作為順なので、先頭から取れば入れ子の部分集合になる。"""
+    """Sample excerpts from the test contracts (or, with test=False, from the calibration split).
+
+    Returns n_positive excerpts that contain at least one clause plus n_random excerpts drawn at
+    random. Both lists are in random order, so taking a prefix gives a nested subset."""
     allw = [w for c in load_contracts(path) if is_test_contract(c["title"]) == test for w in windows(c)]
     rng = random.Random(seed)
     pos = [w for w in allw if any(v is True for v in w["labels"].values())]

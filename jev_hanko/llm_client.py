@@ -1,6 +1,10 @@
-"""比較用: 普通の LLM を OpenRouter の chat/completions で呼ぶ(標準ライブラリのみ)。
+"""Comparison baseline: call an ordinary LLM through OpenRouter chat/completions (stdlib only).
 
-Jev と同じ判定基準の文章を渡し、選択肢の1つと自信(0-1)だけを返させる。thinking は使わない。
+The model is given the same criteria text as Jev and must answer with one option plus a confidence
+in 0-1. Thinking/reasoning modes are not used.
+
+build_messages()/parse_answer() below are the single-label variant kept from an earlier experiment
+whose prompt is in Japanese; the CUAD measurement uses llm_system_prompt() in cuad_task.py instead.
 """
 import json
 import os
@@ -25,7 +29,7 @@ def build_messages(instructions, criteria, state):
 
 
 def parse_answer(text, labels):
-    """'委託料|0.9' のような出力を読む。ラベルが読めなければ (None, 0.0)。"""
+    """Parse an answer such as 'label|0.9'. Returns (None, 0.0) if no label can be read."""
     text = (text or "").strip()
     head, _, tail = text.partition("|")
     label = next((lab for lab in sorted(labels, key=len, reverse=True) if lab in head), None)

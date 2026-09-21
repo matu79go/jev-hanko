@@ -1,13 +1,16 @@
-"""CUAD: 契約書の抜粋1件につき 41 種類の条項チェックをまとめて判定し、弁護士の注釈と突き合わせる。
+"""CUAD: for each contract excerpt, run all 41 clause checks in one shot and score them against
+the lawyers' annotations.
 
 Usage: OPENROUTER_API_KEY=... python3 scripts/eval_cuad.py <CUADv1.json> --pos 250 --rand 250 --calib 100 \
          --llm google/gemini-2.5-flash-lite anthropic/claude-haiku-4.5 \
          --llm-full google/gemini-2.5-flash-lite --llm-small anthropic/claude-sonnet-5 --small-n 200
-  --llm       : 該当する条項の番号だけを短く答えさせる(LLM に最も有利な形式)
-  --llm-full  : 41 項目すべての確率を答えさせる(Jev と同じ情報量)
-  --llm-small : 高いモデル用。テストの先頭 small-n 件だけで測る(番号だけ形式)
-  --calib     : テストとは別の契約書の抜粋で Jev のしきい値を1つ決める(正例あり N 件 + 無作為 N 件)
-応答は cache/ に保存し、再実行は課金なし。
+  --llm       : make the model answer with just the IDs of the clauses present (the format most
+                favourable to a chat LLM)
+  --llm-full  : make the model give a probability for all 41 clauses (same information as Jev)
+  --llm-small : for expensive models; measure only the first small-n test excerpts (IDs-only format)
+  --calib     : pick a single Jev threshold on excerpts from contracts held out from the test set
+                (N positive-bearing excerpts + N random ones)
+Responses are cached under cache/, so re-runs cost nothing.
 """
 import argparse
 import hashlib
@@ -23,7 +26,8 @@ from jev_hanko.cuad_task import categories, jev_questions, llm_system_prompt, pa
 from jev_hanko.jev_client import MODEL, JevError, build_request, decide  # noqa: E402
 from jev_hanko.llm_client import LLMError, chat  # noqa: E402
 
-# thinking を使わせない/最小にするための指定(モデルごと)。結果の表に出力トークン数を出して検証できるようにする
+# Per-model settings that disable or minimise thinking. Output token counts are printed in the
+# results table so this can be verified.
 MODEL_OPTS = {
     "openai/gpt-oss-20b:nitro": {"reasoning": {"effort": "low"}, "max_tokens_bonus": 400},
     "qwen/qwen3.7-flash": {"reasoning": {"enabled": False}},
@@ -84,8 +88,8 @@ def report(name, wins, cats, outs, th=0.5):
     lat = sorted(o[1] for o in outs)
     n = len(outs)
     cost = sum(o[2] for o in outs) / n * 1000
-    print(f"{name:<50} 見つけた率 {rec:5.1%} | 的中率 {prec:5.1%} | F1 {f1:.3f} | "
-          f"1件 {lat[n//2]:.2f}s(95%点 {lat[int(n*0.95)]:.2f}s)| 1000件 ${cost:.3f} | 出力 {sum(o[3] for o in outs)/n:.0f}tok")
+    print(f"{name:<50} recall {rec:5.1%} | precision {prec:5.1%} | F1 {f1:.3f} | "
+          f"per page {lat[n//2]:.2f}s (p95 {lat[int(n*0.95)]:.2f}s) | per 1000 ${cost:.3f} | out {sum(o[3] for o in outs)/n:.0f}tok")
     return {"name": name, "f1": f1, "p50": lat[n // 2], "per1000": cost}
 
 
@@ -104,8 +108,8 @@ def main():
     pos, rnd, n_all, n_pos = sample_windows(a.cuad, a.pos, a.rand)
     wins = pos + rnd
     gold_pos = sum(v is True for w in wins for v in w["labels"].values())
-    print(f"テスト用契約書の抜粋 全{n_all}件(条項を含む {n_pos}件)から {len(wins)}件。"
-          f"判定数 {len(wins)*len(cats)}、うち弁護士が『ある』とした箇所 {gold_pos}\n")
+    print(f"{len(wins)} excerpts taken from {n_all} test-contract excerpts ({n_pos} contain a clause). "
+          f"{len(wins)*len(cats)} decisions, of which {gold_pos} were marked present by the lawyers\n")
     questions = jev_questions(cats)
     pool = ThreadPoolExecutor(8)
 
@@ -115,13 +119,13 @@ def main():
         cw = cpos + crnd
         cout = list(pool.map(lambda w: run_jev(w, questions), cw))
         th = max((t / 100 for t in range(10, 100, 5)), key=lambda t: prf(cw, cats, cout, t)[2])
-        print(f"較正: テストと別の契約書の抜粋 {len(cw)} 件で Jev のしきい値を決定 → {th:.2f}"
-              f"(較正データ上の F1 {prf(cw, cats, cout, th)[2]:.3f})\n")
+        print(f"Calibration: Jev threshold chosen on {len(cw)} held-out excerpts -> {th:.2f}"
+              f" (F1 {prf(cw, cats, cout, th)[2]:.3f} on the calibration set)\n")
 
     jev_out = list(pool.map(lambda w: run_jev(w, questions), wins))
-    summary = [report("Jev(41問を1回で、しきい値 0.5)", wins, cats, jev_out)]
+    summary = [report("Jev (all 41 in one call, threshold 0.5)", wins, cats, jev_out)]
     if a.calib:
-        summary[0] = report(f"Jev(41問を1回で、較正しきい値 {th:.2f})", wins, cats, jev_out, th)
+        summary[0] = report(f"Jev (all 41 in one call, calibrated threshold {th:.2f})", wins, cats, jev_out, th)
 
     for models, compact, tag, mt in ((a.llm, True, "compact", 160), (a.llm_full, False, "full", 700)):
         system = llm_system_prompt(cats, compact)
@@ -129,29 +133,29 @@ def main():
             try:
                 out = list(pool.map(lambda w, m=model: run_llm(m, w, system, mt, tag), wins))
             except (LLMError, OSError) as e:
-                print(f"{model}: 実行できず → {str(e)[:160]}")
+                print(f"{model}: failed -> {str(e)[:160]}")
                 continue
-            summary.append(report(f"{model}({'番号だけ' if compact else '41項目すべて'})", wins, cats, out))
+            summary.append(report(f"{model} ({'IDs only' if compact else 'all 41 clauses'})", wins, cats, out))
 
     if a.llm_small:
         k = a.small_n // 2
         sw = pos[:k] + rnd[:k]
         sj = jev_out[:k] + jev_out[len(pos):len(pos) + k]
-        print(f"\n--- 高いモデルとの比較(同じ {len(sw)} 件)---")
-        report(f"Jev(しきい値 {th:.2f})", sw, cats, sj, th)
+        print(f"\n--- Comparison against the expensive model (same {len(sw)} excerpts) ---")
+        report(f"Jev (threshold {th:.2f})", sw, cats, sj, th)
         system = llm_system_prompt(cats, True)
         for model in a.llm_small:
             try:
                 out = list(pool.map(lambda w, m=model: run_llm(m, w, system, 160, "compact"), sw))
             except (LLMError, OSError) as e:
-                print(f"{model}: 実行できず → {str(e)[:160]}")
+                print(f"{model}: failed -> {str(e)[:160]}")
                 continue
-            summary.append(report(f"{model}(番号だけ、{len(sw)}件)", sw, cats, out))
+            summary.append(report(f"{model} (IDs only, {len(sw)} excerpts)", sw, cats, out))
 
     jev = summary[0]
-    print("\n=== Jev を 1 としたときの比 ===")
+    print("\n=== Ratios, with Jev as 1 ===")
     for s in summary[1:]:
-        print(f"{s['name']:<56} 値段 {s['per1000']/jev['per1000']:6.1f} 倍 | 待ち時間 {s['p50']/jev['p50']:4.1f} 倍 | F1 差 {s['f1']-jev['f1']:+.3f}")
+        print(f"{s['name']:<56} cost x{s['per1000']/jev['per1000']:6.1f} | latency x{s['p50']/jev['p50']:4.1f} | F1 {s['f1']-jev['f1']:+.3f}")
 
 
 if __name__ == "__main__":
